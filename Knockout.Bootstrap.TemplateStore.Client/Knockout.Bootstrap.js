@@ -53,6 +53,18 @@
             this.loadTemplates(root, function () {
                 callback(model);
             });
+        },
+        getView: function (root, viewName, callback) {
+            var onLoaded = function (loaded) {
+                this.templateCache[root] = loaded;
+                callback(this.templateCache[root][viewName]);
+            }.bind(this);
+
+            if (this.templateCache[root] !== undefined) {
+                onLoaded(this.templateCache[root]);
+            } else {
+                $.getJSON(this.url, { root: root }, onLoaded.bind(this));
+            }
         }
     };
 
