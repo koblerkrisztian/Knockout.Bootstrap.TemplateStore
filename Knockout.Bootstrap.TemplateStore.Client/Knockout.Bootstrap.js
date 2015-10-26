@@ -21,8 +21,9 @@
             var stringTemplateEngine = new ko.nativeTemplateEngine();
             var self = this;
 
-            stringTemplateEngine.makeTemplateSource = function (template) {
-                return new stringTemplateSource(template, self);
+            stringTemplateEngine.base_makeTemplateSource = stringTemplateEngine.makeTemplateSource;
+            stringTemplateEngine.makeTemplateSource = function (template, templateDocument) {
+                return new stringTemplateSource(template, templateDocument, self, stringTemplateEngine.base_makeTemplateSource);
             };
 
             ko.setTemplateEngine(stringTemplateEngine);
@@ -68,19 +69,43 @@
         }
     };
 
-    var stringTemplateSource = function (template, api) {
+    var stringTemplateSource = function (template, templateDocument, api, nativeTemplateSourceFactory) {
         this.template = template;
+        this.templateDocument = templateDocument;
         this.api = api;
+        this.nativeTemplateSourceFactory = nativeTemplateSourceFactory;
     };
 
-    stringTemplateSource.prototype.text = function () {
+    stringTemplateSource.prototype.text = function (/* valueToWrite*/) {
         var template = this.api.currentView[this.template] || this.api.templateCache[this.api.shared][this.template];
         if (template == null) {
-            throw "View '" + this.template + "' could not be found";
+            var templateSource = this.nativeTemplateSourceFactory(this.template, this.templateDocument);
+            if (arguments.length == 0)
+                template = templateSource.text();
+            else
+                template = templateSource.text(arguments[0]);
         }
 
         return template;
     };
+
+    stringTemplateSource.prototype.nodes = function (/* valueToWrite*/) {
+        // If we can resolve the template return null. This way text() will be invoked
+        // If we can not resolve the template, create the native engine and get the template from it
+        var template = this.api.currentView[this.template] || this.api.templateCache[this.api.shared][this.template];
+
+        if (template) {
+            return null;
+        }
+        else {
+            var templateSource = this.nativeTemplateSourceFactory(this.template, this.templateDocument);
+            if (arguments.length == 0)
+                template = templateSource.nodes();
+            else
+                template = templateSourcenodes(arguments[0]);
+            return template;
+        }
+    }
 
     return {
         init: function (datasource, appstart) {
